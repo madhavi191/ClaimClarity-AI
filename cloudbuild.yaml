@@ -1,0 +1,24 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --build-arg=VITE_FIREBASE_API_KEY=${_VITE_FIREBASE_API_KEY}
+      - --build-arg=VITE_FIREBASE_AUTH_DOMAIN=${_VITE_FIREBASE_AUTH_DOMAIN}
+      - --build-arg=VITE_FIREBASE_PROJECT_ID=${_VITE_FIREBASE_PROJECT_ID}
+      - --build-arg=VITE_FIREBASE_STORAGE_BUCKET=${_VITE_FIREBASE_STORAGE_BUCKET}
+      - --build-arg=VITE_FIREBASE_MESSAGING_SENDER_ID=${_VITE_FIREBASE_MESSAGING_SENDER_ID}
+      - --build-arg=VITE_FIREBASE_APP_ID=${_VITE_FIREBASE_APP_ID}
+      - -t
+      - asia-south1-docker.pkg.dev/gen-lang-client-0363908338/cloud-run-source-deploy/claimclarity-ai:$BUILD_ID
+      - .
+images:
+  - asia-south1-docker.pkg.dev/gen-lang-client-0363908338/cloud-run-source-deploy/claimclarity-ai:$BUILD_ID
+
+substitutions:
+  _VITE_FIREBASE_API_KEY: "AIzaSyA5G1eGoTNl19O7OZUT-BsVWLP59K1MEY8"
+  _VITE_FIREBASE_AUTH_DOMAIN: "gen-lang-client-0363908338.firebaseapp.com"
+  _VITE_FIREBASE_PROJECT_ID: "gen-lang-client-0363908338"
+  _VITE_FIREBASE_STORAGE_BUCKET: "gen-lang-client-0363908338.firebasestorage.app"
+  _VITE_FIREBASE_MESSAGING_SENDER_ID: "51189751566"
+  _VITE_FIREBASE_APP_ID: "1:51189751566:web:b1d2f7b1f74c31c165415f"
+

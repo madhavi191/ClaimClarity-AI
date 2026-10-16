@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClaimClarity AI — Loan Document Verification & Risk Assistance</title>
+    <meta name="description" content="AI-Powered Loan Document Verification and Risk-Assistance Platform for bank and NBFC officers." />
+    <meta property="og:title" content="ClaimClarity AI — Loan Document Verification & Risk Assistance" />
+    <meta property="og:description" content="AI-Powered Loan Document Verification and Risk-Assistance Platform for bank and NBFC officers." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script>
+      // Per system instructions: HMR is disabled in AI Studio; ignore transient WebSocket errors.
+      window.addEventListener('unhandledrejection', function(event) {
+        if (event && event.reason && (
+          String(event.reason.message || event.reason).includes('WebSocket') ||
+          String(event.reason.message || event.reason).includes('vite:ws')
+        )) {
+          event.preventDefault();
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

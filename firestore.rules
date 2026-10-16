@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Zero Insecure Defaults: Deny all direct client-side reads and writes across all paths.
+    // All application data access, verification and user records must flow through the authorized Express backend.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

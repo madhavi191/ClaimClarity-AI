@@ -45,7 +45,7 @@ RUN npm install --omit=dev
 
 COPY --chown=node:node --from=builder /app/dist ./dist
 COPY --chown=node:node --from=builder /app/server.js ./server.js
-COPY --chown=node:node --from=builder /app/.demo-data.json ./.demo-data.json
+
 
 # Ensure runtime directory permissions for non-root user node
 RUN chown -R node:node /app

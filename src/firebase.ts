@@ -74,12 +74,10 @@ export function isRunningInIframe(): boolean {
 }
 
 /**
- * Authenticates with Google via Firebase Auth.
- * Automatically adapts between environments:
- * 1. Inside an iframe (AI Studio preview): Uses `signInWithPopup` so the parent
- *    preview page does not navigate away, preventing the AI Studio Auth Bridge 403 error.
- * 2. Standalone window (Cloud Run / Safari direct): Uses `signInWithRedirect`
- *    for reliable, non-popup OAuth with redirect completion handled by `getRedirectResult`.
+ * Authenticates with Google via Firebase Auth using signInWithPopup.
+ * Used for both the standalone Cloud Run deployment and the AI Studio preview iframe,
+ * ensuring direct credential resolution in the current window without relying
+ * on cross-origin redirect state storage or triggering redirect loops.
  */
 export async function signInWithGoogle(): Promise<{ token: string; email: string; uid: string } | null> {
   if (isRealFirebaseConfigured) {
@@ -89,20 +87,13 @@ export async function signInWithGoogle(): Promise<{ token: string; email: string
       );
     }
 
-    // Inside iframe (e.g. AI Studio preview environment), use popup to prevent iframe navigation
-    if (isRunningInIframe()) {
-      const result = await signInWithPopup(auth, googleProvider);
-      const idToken = await result.user.getIdToken();
-      return {
-        token: idToken,
-        email: result.user.email || '',
-        uid: result.user.uid,
-      };
-    }
-
-    // Standalone browser window (e.g. Cloud Run production deployment), use redirect
-    await signInWithRedirect(auth, googleProvider);
-    return null;
+    const result = await signInWithPopup(auth, googleProvider);
+    const idToken = await result.user.getIdToken();
+    return {
+      token: idToken,
+      email: result.user.email || '',
+      uid: result.user.uid,
+    };
   }
 
   // In production mode or when live credentials are required, reject mock authentication
@@ -125,10 +116,9 @@ export async function signInWithGoogle(): Promise<{ token: string; email: string
 }
 
 /**
- * Processes Firebase getRedirectResult when the user returns from signInWithRedirect.
+ * Processes Firebase getRedirectResult if a redirect was previously pending.
  * Resolves to the user authentication details with a genuine Firebase ID token,
- * or null if this page load is not a redirect return.
- * Re-throws any authentic errors so callers can display clear user feedback.
+ * or null if no redirect result is present.
  */
 export async function getGoogleRedirectResult(): Promise<{
   token: string;
@@ -136,11 +126,6 @@ export async function getGoogleRedirectResult(): Promise<{
   uid: string;
 } | null> {
   if (!isRealFirebaseConfigured || !auth) {
-    return null;
-  }
-
-  // In an iframe, the popup flow is used instead of redirect
-  if (isRunningInIframe()) {
     return null;
   }
 
@@ -168,10 +153,19 @@ export function formatAuthErrorMessage(error: any): string {
   const code = error?.code || '';
   const message = error?.message || 'Google Sign-In failed.';
 
+  if (code === 'auth/popup-blocked') {
+    return 'The sign-in popup was blocked by your browser. Please allow popups for this site in your browser settings and try again.';
+  }
+  if (code === 'auth/popup-closed-by-user') {
+    return 'The Google Sign-In popup was closed before completing authentication. Please click "Sign in with Google" and complete the account selection.';
+  }
+  if (code === 'auth/cancelled-popup-request') {
+    return 'Only one sign-in window can be active at a time. The previous request was cancelled. Please try again.';
+  }
   if (code === 'auth/unauthorized-domain') {
     return 'This domain is not authorized for OAuth in your Firebase project. Please add this domain to Firebase Console > Authentication > Settings > Authorized domains.';
   }
-  if (code === 'auth/redirect-cancelled-by-user' || code === 'auth/popup-closed-by-user') {
+  if (code === 'auth/redirect-cancelled-by-user') {
     return 'Google Sign-In was cancelled before completion. Please try again.';
   }
   if (code === 'auth/network-request-failed') {
@@ -182,6 +176,9 @@ export function formatAuthErrorMessage(error: any): string {
   }
   if (code === 'auth/operation-not-allowed') {
     return 'Google Sign-In is not enabled in Firebase Console. Please enable the Google provider in Firebase Console > Authentication > Sign-in method.';
+  }
+  if (code === 'auth/internal-error') {
+    return 'An internal Firebase Authentication error occurred. Please check your connection and retry.';
   }
   return message;
 }

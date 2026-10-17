@@ -31,8 +31,8 @@ export function App() {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile | null>(null);
   const [authLoading, setAuthLoading] = useState(false);
-  const [redirectChecking, setRedirectChecking] = useState(isRealFirebaseConfigured && !isRunningInIframe());
-  const [redirectError, setRedirectError] = useState<string | null>(null);
+  const [sessionChecking, setSessionChecking] = useState(isRealFirebaseConfigured);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Navigation state (for Administrators: toggle between Officer Pipeline and Admin/Dev Console)
   const [activeNav, setActiveNav] = useState<'pipeline' | 'admin-console'>('pipeline');
@@ -57,86 +57,62 @@ export function App() {
   const [isResetModalOpen, setIsResetModalOpen] = useState(false);
   const [isOfficersModalOpen, setIsOfficersModalOpen] = useState(false);
 
-  // Process Google Sign-In redirect result on mount
+  // Restore Firebase Auth session on mount (works across refresh in both standalone Cloud Run and iframe)
   useEffect(() => {
     let active = true;
 
-    async function checkAuthRedirect() {
-      if (!isRealFirebaseConfigured) {
-        setRedirectChecking(false);
-        return;
-      }
-
-      // If running inside an iframe (AI Studio preview environment), popup flow is used.
-      // Attach onAuthStateChanged to restore active session without triggering redirect checks.
-      if (isRunningInIframe()) {
-        if (auth) {
-          const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-            if (!active) return;
-            if (fbUser) {
-              try {
-                const idToken = await fbUser.getIdToken();
-                if (active) {
-                  setToken(idToken);
-                }
-              } catch (tokenErr) {
-                console.warn('Failed to retrieve ID token from Firebase session:', tokenErr);
-              }
-            }
-          });
-          return () => unsubscribe();
-        }
-        return;
-      }
-
-      // Standalone window (e.g. Cloud Run production deployment): check redirect result
-      try {
-        const result = await getGoogleRedirectResult();
-        if (result?.token && active) {
-          setToken(result.token);
-          setRedirectChecking(false);
-          return;
-        }
-
-        // If no fresh redirect credential, verify whether Firebase Auth holds an existing user session
-        if (auth) {
-          const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-            if (!active) return;
-            if (fbUser) {
-              try {
-                const idToken = await fbUser.getIdToken();
-                if (active) {
-                  setToken(idToken);
-                }
-              } catch (tokenErr) {
-                console.warn('Failed to retrieve ID token from Firebase session:', tokenErr);
-              }
-            }
-            if (active) {
-              setRedirectChecking(false);
-            }
-          });
-          return () => unsubscribe();
-        } else {
-          if (active) {
-            setRedirectChecking(false);
-          }
-        }
-      } catch (err: any) {
-        console.error('Firebase redirect result processing error:', err);
-        if (active) {
-          const formatted = formatAuthErrorMessage(err);
-          setErrorBanner(`Google Sign-In Error: ${formatted}`);
-          setRedirectError(formatted);
-          setRedirectChecking(false);
-        }
-      }
+    if (!isRealFirebaseConfigured || !auth) {
+      setSessionChecking(false);
+      return;
     }
 
-    checkAuthRedirect();
+    // Safety timeout: Ensure session checking spinner never hangs indefinitely
+    const timeoutId = setTimeout(() => {
+      if (active) {
+        setSessionChecking(false);
+      }
+    }, 2500);
+
+    // Check redirect result in case a redirect was previously pending
+    getGoogleRedirectResult()
+      .then((redirectResult) => {
+        if (!active) return;
+        if (redirectResult?.token) {
+          setToken(redirectResult.token);
+          setSessionChecking(false);
+          clearTimeout(timeoutId);
+        }
+      })
+      .catch((err) => {
+        if (!active) return;
+        console.warn('Redirect result check note:', err);
+        const formatted = formatAuthErrorMessage(err);
+        setAuthError(formatted);
+      });
+
+    // Listen for Firebase Auth state changes (automatically restores session from client persistence)
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (!active) return;
+      if (fbUser) {
+        try {
+          const idToken = await fbUser.getIdToken();
+          if (active) {
+            setToken(idToken);
+          }
+        } catch (tokenErr) {
+          console.warn('Failed to retrieve ID token from Firebase session:', tokenErr);
+        }
+      }
+      if (active) {
+        setSessionChecking(false);
+        clearTimeout(timeoutId);
+      }
+    });
 
     return () => {
       active = false;
+      clearTimeout(timeoutId);
+      unsubscribe();
     };
   }, []);
 
@@ -277,10 +253,10 @@ export function App() {
       )}
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {redirectChecking ? (
+        {sessionChecking ? (
           <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-3">
             <RotateCw className="w-8 h-8 text-teal-600 animate-spin" />
-            <p className="text-sm font-semibold text-slate-600">Completing Google authentication...</p>
+            <p className="text-sm font-semibold text-slate-600">Restoring authentication session...</p>
           </div>
         ) : authLoading ? (
           <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-3">
@@ -291,7 +267,7 @@ export function App() {
           /* Screen 1: Login */
           <LoginScreen
             onLoginSuccess={(newToken) => setToken(newToken)}
-            redirectError={redirectError}
+            redirectError={authError}
           />
         ) : user?.role === 'unauthorized' ? (
           /* Screen 2: Officer Enrollment */

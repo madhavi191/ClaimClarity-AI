@@ -1,14 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, AlertCircle, ArrowRight, UserCheck, Play, Key } from 'lucide-react';
-import { signInWithGoogle, signInAsTestOfficer, isRealFirebaseConfigured } from '../firebase';
+import {
+  signInWithGoogle,
+  signInAsTestOfficer,
+  isRealFirebaseConfigured,
+  formatAuthErrorMessage,
+} from '../firebase';
 
 interface LoginScreenProps {
   onLoginSuccess: (token: string) => void;
+  redirectError?: string | null;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, redirectError }) => {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(redirectError || null);
+
+  useEffect(() => {
+    if (redirectError) {
+      setError(redirectError);
+    }
+  }, [redirectError]);
 
   const handleEnterDemoMode = () => {
     if (isRealFirebaseConfigured || (import.meta as any).env?.PROD) {
@@ -28,10 +40,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     setLoading(true);
     setError(null);
     try {
-      const { token } = await signInWithGoogle();
-      onLoginSuccess(token);
+      const res = await signInWithGoogle();
+      if (res?.token) {
+        onLoginSuccess(res.token);
+      }
     } catch (err: any) {
-      setError(err?.message || 'Google Sign-In failed. Please try again or check authorized domains.');
+      setError(formatAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -170,7 +184,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                  <span>{loading ? 'Authenticating...' : 'Sign in with Google'}</span>
+                  <span>{loading ? 'Redirecting...' : 'Sign in with Google'}</span>
                 </button>
 
                 {/* Test Officer Flow Button for Hackathon Judges */}

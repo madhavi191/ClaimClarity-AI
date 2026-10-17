@@ -24,7 +24,7 @@ async function startServer() {
   app.set('trust proxy', 1);
 
   // Security Headers via Helmet
-  pp.use(
+  app.use(
     helmet({
       contentSecurityPolicy: false,
       crossOriginEmbedderPolicy: false,

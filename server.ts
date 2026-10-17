@@ -24,23 +24,22 @@ async function startServer() {
   app.set('trust proxy', 1);
 
   // Security Headers via Helmet
-  app.use(
-   helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-  crossOriginOpenerPolicy: {
-    policy: 'same-origin-allow-popups',
-  },
-})
+  pp.use(
+    helmet({
+      contentSecurityPolicy: false,
+      crossOriginEmbedderPolicy: false,
+      crossOriginOpenerPolicy: {
+        policy: 'same-origin-allow-popups',
+      },
+    })
+  );
 
-  // CORS configuration
   app.use(
     cors({
       origin: true,
       credentials: true,
     })
   );
-
   // Defensive JSON & body parsers
   app.use(express.json({ limit: '2mb' }));
   app.use(express.urlencoded({ extended: true, limit: '2mb' }));

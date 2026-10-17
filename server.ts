@@ -25,11 +25,13 @@ async function startServer() {
 
   // Security Headers via Helmet
   app.use(
-    helmet({
-      contentSecurityPolicy: false, // Vite inline scripts & styles support in dev/preview
-      crossOriginEmbedderPolicy: false,
-    })
-  );
+   helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+  crossOriginOpenerPolicy: {
+    policy: 'same-origin-allow-popups',
+  },
+})
 
   // CORS configuration
   app.use(
